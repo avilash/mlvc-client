@@ -1,3 +1,4 @@
+import json
 import os
 from os.path import expanduser
 from shutil import copyfile
@@ -6,7 +7,7 @@ import pandas as pd
 from tinydb import TinyDB, Query
 
 from singleton import SingletonMeta
-from utils.gen_utils import read_json_from_file, write_json_to_file, make_dir_if_not_exist
+from utils.gen_utils import read_json_from_file, write_json_to_file, make_tarfile, make_dir_if_not_exist
 from uploader import post
 
 
@@ -85,7 +86,7 @@ class MLVC(object):
         query = Query()
         run_data = self.db.get(query.run_id == self.run_id)
         run_data = run_data["data"]
-        data_file_name = "data" + str(len(run_data))
+        data_file_name = "data_" + str(len(run_data))
         data_file_path = os.path.join(self.run_dir, data_file_name)
 
         if data_input_type == "json_file":
@@ -101,7 +102,7 @@ class MLVC(object):
 
         run_data.append({
             "type": data_input_type,
-            "file_path": data_file_path
+            "file_name": data_file_name,
         })
         self.db.update({'data': run_data}, query.run_id == self.run_id)
 
@@ -111,7 +112,7 @@ class MLVC(object):
         query = Query()
         run_configs = self.db.get(query.run_id == self.run_id)
         run_configs = run_configs["configs"]
-        config_file_name = "config" + str(len(run_configs))
+        config_file_name = "config_" + str(len(run_configs))
         config_file_path = os.path.join(self.run_dir, config_file_name)
 
         if config_input_type == "json_file":
@@ -123,7 +124,7 @@ class MLVC(object):
 
         run_configs.append({
             "type": config_input_type,
-            "file_path": config_file_path
+            "file_name": config_file_name,
         })
         self.db.update({'configs': run_configs}, query.run_id == self.run_id)
 
@@ -153,8 +154,13 @@ class MLVC(object):
         self.check_init()
         query = Query()
         doc = self.db.get(query.run_id == self.run_id)
-        post("/project/" + self.project_id + "/model/" + self.model_id + "/run", doc, self.req_header)
-        print (doc)
+        upload_file_path = os.path.join(self.mlvc_dir, self.run_id + ".tar.gz")
+        make_tarfile(upload_file_path, self.run_dir)
+        files = {"file": open(upload_file_path, "rb")}
+        post("/project/" + self.project_id + "/model/" + self.model_id + "/run",
+             data=doc, headers=self.req_header)
+        post("/project/" + self.project_id + "/model/" + self.model_id + "/run/" + self.run_id,
+             files=files, headers=self.req_header)
         self.db.update({'status': "uploaded"}, query.run_id == self.run_id)
 
     # ******************** Statictics ******************** #
