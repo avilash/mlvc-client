@@ -36,8 +36,8 @@ class MLVC(object):
         self.api_key = credentials["key"]
         self.api_secret = credentials["secret"]
         self.req_header = {
-            "api_key": self.api_key,
-            "api_secret": self.api_secret
+            "x-api-key": self.api_key,
+            "x-api-secret": self.api_secret
         }
 
     def init_db(self):
