@@ -1,84 +1,50 @@
-import json
 import os
-from os.path import expanduser
 from shutil import copyfile
 from secrets import token_hex
-import pandas as pd
 from tinydb import TinyDB, Query
 
-from singleton import SingletonMeta
+from base import MLVCBase
 from utils.gen_utils import read_json_from_file, write_json_to_file, make_tarfile, make_dir_if_not_exist
 from uploader import post
 
+from modules.git.gitutils import GITUtils
 
-class MLVC(object):
-    # __metaclass__ = SingletonMeta
+
+class MLVC(MLVCBase):
 
     def __init__(self):
-        self.api_key = None
-        self.api_secret = None
-        self.req_header = None
-
-        self.db = None
-        self.project_id = None
-        self.model_id = None
-        self.run_id = None
-        self.run_dir = None
-
-        user_home = expanduser("~")
-        self.mlvc_dir = os.path.join(user_home, ".mlvc")
-        make_dir_if_not_exist(self.mlvc_dir)
-        self.init_keys()
-        self.init_db()
-
-    def init_keys(self):
-        credentials = read_json_from_file(os.path.join(self.mlvc_dir, "credentials.json"))
-        self.api_key = credentials["key"]
-        self.api_secret = credentials["secret"]
-        self.req_header = {
-            "x-api-key": self.api_key,
-            "x-api-secret": self.api_secret
-        }
-
-    def init_db(self):
-        self.db = TinyDB(os.path.join(self.mlvc_dir, "mlvc.json"))
+        super(MLVC, self).__init__()
+        self.git_utils = GITUtils()
 
     def set_params(self, project_id, model_id):
         self.project_id = project_id
         self.model_id = model_id
 
-    def check_init(self, api=True, project=True, extr_vars=None):
-        if extr_vars is None:
-            extr_vars = []
-        if api:
-            api_key_vars = [self.api_key, self.api_secret, ]
-            for var in api_key_vars:
-                if var is None:
-                    raise Exception("MLVC not configured")
-        if project:
-            project_vars = [self.project_id, self.model_id]
-            for var in project_vars:
-                if var is None:
-                    raise Exception("MLVC not inititialised")
-        for var in extr_vars:
-            if var is None:
-                raise Exception("Some Error")
-
     def create_run(self):
         self.check_init()
         self.run_id = token_hex(16)
-        self.db.insert({
+        self.run_dir = os.path.join(self.mlvc_dir, self.run_id)
+        make_dir_if_not_exist(self.run_dir)
+
+        repo_details = self.git_utils.get_repo_details()
+        git_diff_file_name = "code_diff.patch"
+        self.git_utils.write_diff(os.path.join(self.run_dir, git_diff_file_name))
+        repo_details["diff_file_name"] = git_diff_file_name
+
+        run = {
             'run_id': self.run_id,
             "name": self.run_id,
             "data": [],
             "configs": [],
+            "code": {
+                "git": repo_details
+            },
             "logs": [],
             "output": [],
             "extra_info": {},
             "status": "draft"
-        })
-        self.run_dir = os.path.join(self.mlvc_dir, self.run_id)
-        make_dir_if_not_exist(self.run_dir)
+        }
+        self.db.insert(run)
 
     # ******************** DATA ******************** #
     def add_data(self, data_input, data_input_type):
