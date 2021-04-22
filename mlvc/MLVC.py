@@ -39,8 +39,8 @@ class MLVC(MLVCBase):
         run = {
             'run_id': self.run_id,
             "name": name,
-            "tags": tags,
             "description": description,
+            "tags": tags,
 
             "ann": {},
             "config": {},
@@ -94,6 +94,14 @@ class MLVC(MLVCBase):
         config = doc["config"]
         config.update(config_input)
         self.db.update({'config': config}, query.run_id == self.run_id)
+
+    # ******************** CODE ******************** #
+    def add_code_file(self, file_path):
+        self.check_init()
+        code_dir = os.path.join(self.run_dir, "code")
+        make_dir_if_not_exist(code_dir)
+        file_name = os.path.basename(file_path)
+        copyfile(file_path, os.path.join(code_dir, file_name))
 
     # ******************** LOGS ******************** #
     def log(self, line):
