@@ -2,6 +2,7 @@ import os
 from shutil import copyfile
 from secrets import token_hex
 from tinydb import TinyDB, Query
+import logging
 
 from base import MLVCBase
 from utils.gen_utils import read_json_from_file, write_json_to_file, make_tarfile, make_dir_if_not_exist
@@ -14,13 +15,15 @@ class MLVC(MLVCBase):
 
     def __init__(self):
         super(MLVC, self).__init__()
+        self.run_logger = None
+        self.metric_logger = None
         self.git_utils = GITUtils()
 
     def set_params(self, project_id, model_id):
         self.project_id = project_id
         self.model_id = model_id
 
-    def create_run(self):
+    def create_run(self, name="", tags=[], description=""):
         self.check_init()
         self.run_id = token_hex(16)
         self.run_dir = os.path.join(self.mlvc_dir, self.run_id)
@@ -31,82 +34,86 @@ class MLVC(MLVCBase):
         self.git_utils.write_diff(os.path.join(self.run_dir, git_diff_file_name))
         repo_details["diff_file_name"] = git_diff_file_name
 
+        log_details = self.init_loggers()
+
         run = {
             'run_id': self.run_id,
-            "name": self.run_id,
-            "data": [],
-            "configs": [],
+            "name": name,
+            "tags": tags,
+            "description": description,
+
+            "ann": {},
+            "config": {},
             "code": {
                 "git": repo_details
             },
-            "logs": [],
-            "output": [],
+            "logs": log_details,
+            "output": {},
+
             "extra_info": {},
             "status": "draft"
         }
         self.db.insert(run)
 
     # ******************** DATA ******************** #
-    def add_data(self, data_input, data_input_type):
+    def add_annotation(self, ann_input, ann_input_type):
         self.check_init()
-        query = Query()
-        run_data = self.db.get(query.run_id == self.run_id)
-        run_data = run_data["data"]
-        data_file_name = "data_" + str(len(run_data))
-        data_file_path = os.path.join(self.run_dir, data_file_name)
 
-        if data_input_type == "json_file":
-            copyfile(data_input, data_file_path)
-        if data_input_type == "json":
-            write_json_to_file(data_input, data_file_path)
-        elif data_input_type == "csv_file":
-            copyfile(data_input, data_file_path)
-        elif data_input_type == "dataframe":
-            data_input.to_csv(data_file_path)
+        if ann_input_type == "json_file":
+            ann_file_name = "data.json"
+            ann_file_path = os.path.join(self.run_dir, ann_file_name)
+            copyfile(ann_input, ann_file_path)
+        if ann_input_type == "json":
+            ann_file_name = "data.json"
+            ann_file_path = os.path.join(self.run_dir, ann_file_name)
+            write_json_to_file(ann_input, ann_file_path)
+        elif ann_input_type == "csv_file":
+            ann_file_name = "data.csv"
+            ann_file_path = os.path.join(self.run_dir, ann_file_name)
+            copyfile(ann_input, ann_file_path)
+        elif ann_input_type == "dataframe":
+            ann_file_name = "data.csv"
+            ann_file_path = os.path.join(self.run_dir, ann_file_name)
+            ann_input.to_csv(ann_file_path)
         else:
             raise Exception("No proper input type mentioned")
 
-        run_data.append({
-            "type": data_input_type,
-            "file_name": data_file_name,
-        })
-        self.db.update({'data': run_data}, query.run_id == self.run_id)
+        query = Query()
+        ann_obj = {
+            "type": ann_input_type,
+            "file_name": ann_file_name,
+        }
+        self.db.update({'ann': ann_obj}, query.run_id == self.run_id)
 
     # ******************** CONFIG ******************** #
-    def add_config(self, config_input, config_input_type):
+    def add_config(self, config_input):
         self.check_init()
         query = Query()
-        run_configs = self.db.get(query.run_id == self.run_id)
-        run_configs = run_configs["configs"]
-        config_file_name = "config_" + str(len(run_configs))
-        config_file_path = os.path.join(self.run_dir, config_file_name)
 
-        if config_input_type == "json_file":
-            copyfile(config_input, config_file_path)
-        if config_input_type == "json":
-            write_json_to_file(config_input, config_file_path)
-        else:
-            raise Exception("No proper input type mentioned")
-
-        run_configs.append({
-            "type": config_input_type,
-            "file_name": config_file_name,
-        })
-        self.db.update({'configs': run_configs}, query.run_id == self.run_id)
-
-    def add_model_config(self):
-        self.check_init()
-
-    def add_hyper_params(self):
-        self.check_init()
+        doc = self.db.get(query.run_id == self.run_id)
+        config = doc["config"]
+        config.update(config_input)
+        self.db.update({'config': config}, query.run_id == self.run_id)
 
     # ******************** LOGS ******************** #
-    def add_log_file(self):
+    def log(self, line):
         self.check_init()
+        self.run_logger.debug(line)
+
+    def log_metric(self, metric_input):
+        self.check_init()
+        self.metric_logger.debug(metric_input)
 
     # ******************** OUTPUT ******************** #
-    def add_output(self):
+    def add_output(self, metric_input):
         self.check_init()
+        self.check_init()
+        query = Query()
+
+        doc = self.db.get(query.run_id == self.run_id)
+        output = doc["output"]
+        output.update(metric_input)
+        self.db.update({'output': output}, query.run_id == self.run_id)
 
     # ******************** COMMIT ******************** #
     def commit(self):
@@ -114,6 +121,7 @@ class MLVC(MLVCBase):
         query = Query()
         doc = self.db.get(query.run_id == self.run_id)
         self.db.update({'status': "submitted"}, query.run_id == self.run_id)
+        self.remove_loggers()
 
     # ******************** UPLOAD ******************** #
     def upload(self):
@@ -135,3 +143,42 @@ class MLVC(MLVCBase):
 
     def remove_all_runs(self):
         self.db.truncate()
+
+    # ******************** Logging ******************** #
+
+    def init_loggers(self):
+        run_log_file_name = "run.log"
+        metric_log_file_name = "metric.log"
+
+        file_log_formatter = logging.Formatter(
+            "{'time':'%(asctime)s', 'name': '%(name)s', \
+            'level': '%(levelname)s', 'payload': '%(message)s'}"
+        )
+
+        self.run_logger = logging.getLogger("run")
+        self.run_logger.setLevel(logging.DEBUG)
+        run_log_file_path = os.path.join(self.run_dir, run_log_file_name)
+        run_file_handler = logging.FileHandler(run_log_file_path)
+        run_file_handler.setFormatter(file_log_formatter)
+        self.run_logger.addHandler(run_file_handler)
+        self.metric_logger = logging.getLogger("metric")
+        self.metric_logger.setLevel(logging.DEBUG)
+        metric_log_file_path = os.path.join(self.run_dir, metric_log_file_name)
+        metric_file_handler = logging.FileHandler(metric_log_file_path)
+        metric_file_handler.setFormatter(file_log_formatter)
+        self.metric_logger.addHandler(metric_file_handler)
+
+        return {
+            "run": {"file_name": run_log_file_name},
+            "metric": {"file_name": metric_log_file_name},
+        }
+
+    def remove_loggers(self):
+        if self.run_logger is not None:
+            while self.run_logger.hasHandlers():
+                self.run_logger.removeHandler(self.run_logger.handlers[0])
+            self.run_logger = None
+        if self.metric_logger is not None:
+            while self.metric_logger.hasHandlers():
+                self.metric_logger.removeHandler(self.metric_logger.handlers[0])
+            self.metric_logger = None

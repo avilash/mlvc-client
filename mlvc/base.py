@@ -15,6 +15,7 @@ class MLVCBase(object):
         self.api_secret = None
         self.req_header = None
 
+        # DB
         self.db = None
 
         # Project Details
