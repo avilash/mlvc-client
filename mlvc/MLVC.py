@@ -9,6 +9,7 @@ from utils.gen_utils import read_json_from_file, write_json_to_file, make_tarfil
 from uploader import post
 
 from modules.git.gitutils import GITUtils
+from modules.system.system_stats import SystemStats
 
 
 class MLVC(MLVCBase):
@@ -18,6 +19,7 @@ class MLVC(MLVCBase):
         self.run_logger = None
         self.metric_logger = None
         self.git_utils = GITUtils()
+        self.system_stats_obj = None
 
     def set_params(self, project_id, model_id):
         self.project_id = project_id
@@ -36,6 +38,9 @@ class MLVC(MLVCBase):
 
         log_details = self.init_loggers()
 
+        self.system_stats_obj = SystemStats(self.system_stats_logger)
+        self.system_stats_obj.start()
+
         run = {
             'run_id': self.run_id,
             "name": name,
@@ -45,7 +50,8 @@ class MLVC(MLVCBase):
             "ann": {},
             "config": {},
             "code": {
-                "git": repo_details
+                "git": repo_details,
+                "files": []
             },
             "logs": log_details,
             "output": {},
@@ -98,10 +104,13 @@ class MLVC(MLVCBase):
     # ******************** CODE ******************** #
     def add_code_file(self, file_path):
         self.check_init()
-        code_dir = os.path.join(self.run_dir, "code")
-        make_dir_if_not_exist(code_dir)
         file_name = os.path.basename(file_path)
-        copyfile(file_path, os.path.join(code_dir, file_name))
+        copyfile(file_path, os.path.join(self.run_dir, file_name))
+        query = Query()
+        doc = self.db.get(query.run_id == self.run_id)
+        code_files = doc["code"]["files"]
+        code_files.append(file_name)
+        self.db.update(self.set_nested(["code", "files"], code_files))
 
     # ******************** LOGS ******************** #
     def log(self, line):
@@ -128,6 +137,8 @@ class MLVC(MLVCBase):
         self.check_init()
         query = Query()
         doc = self.db.get(query.run_id == self.run_id)
+
+        self.system_stats_obj.stop()
         self.db.update({'status': "submitted"}, query.run_id == self.run_id)
         self.remove_loggers()
 
@@ -157,6 +168,7 @@ class MLVC(MLVCBase):
     def init_loggers(self):
         run_log_file_name = "run.log"
         metric_log_file_name = "metric.log"
+        system_log_file_name = "system_stats.log"
 
         file_log_formatter = logging.Formatter(
             "{'time':'%(asctime)s', 'name': '%(name)s', \
@@ -169,12 +181,20 @@ class MLVC(MLVCBase):
         run_file_handler = logging.FileHandler(run_log_file_path)
         run_file_handler.setFormatter(file_log_formatter)
         self.run_logger.addHandler(run_file_handler)
+
         self.metric_logger = logging.getLogger("metric")
         self.metric_logger.setLevel(logging.DEBUG)
         metric_log_file_path = os.path.join(self.run_dir, metric_log_file_name)
         metric_file_handler = logging.FileHandler(metric_log_file_path)
         metric_file_handler.setFormatter(file_log_formatter)
         self.metric_logger.addHandler(metric_file_handler)
+
+        self.system_stats_logger = logging.getLogger("system_stats")
+        self.system_stats_logger.setLevel(logging.DEBUG)
+        system_log_file_path = os.path.join(self.run_dir, system_log_file_name)
+        system_log_file_handler = logging.FileHandler(system_log_file_path)
+        system_log_file_handler.setFormatter(file_log_formatter)
+        self.system_stats_logger.addHandler(system_log_file_handler)
 
         return {
             "run": {"file_name": run_log_file_name},
@@ -190,3 +210,16 @@ class MLVC(MLVCBase):
             while self.metric_logger.hasHandlers():
                 self.metric_logger.removeHandler(self.metric_logger.handlers[0])
             self.metric_logger = None
+
+    # ******************** DB Functions ******************** #
+
+    @staticmethod
+    def set_nested(path, val):
+        def transform(doc):
+            current = doc
+            for key in path[:-1]:
+                current = current[key]
+
+            current[path[-1]] = val
+
+        return transform

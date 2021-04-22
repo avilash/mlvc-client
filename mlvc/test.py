@@ -1,4 +1,6 @@
+import time
 from MLVC import MLVC
+
 
 mlvc_obj = MLVC()
 mlvc_obj.set_params("6075bdd29b6f23000a9e1163", "1618337342618")
@@ -12,6 +14,7 @@ mlvc_obj.log_metric({"a": "aa", "b": "bb"})
 mlvc_obj.log("Hi this is a second sample log")
 mlvc_obj.log_metric({"c": "cc", "d": "dd"})
 mlvc_obj.add_output({"b": "bb", "c": {"d": "dd"}})
+time.sleep(10)
 mlvc_obj.commit()
 mlvc_obj.upload()
 # print(mlvc_obj.get_all_runs())
