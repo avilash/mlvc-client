@@ -152,7 +152,7 @@ class MLVC(MLVCBase):
         files = {"file": open(upload_file_path, "rb")}
         post("/project/" + self.project_id + "/model/" + self.model_id + "/run",
              data=doc, headers=self.req_header)
-        post("/project/" + self.project_id + "/model/" + self.model_id + "/run/" + self.run_id,
+        post("/project/" + self.project_id + "/model/" + self.model_id + "/run/" + self.run_id + "/files",
              files=files, headers=self.req_header)
         self.db.update({'status': "uploaded"}, query.run_id == self.run_id)
 

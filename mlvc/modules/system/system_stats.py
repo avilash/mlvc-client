@@ -37,7 +37,6 @@ class SystemStats(threading.Thread):
                 },
                 "gpu": gpu_stats
             }
-            print ("Hello")
             self.logger.debug(system_stats)
             time.sleep(1)
 
