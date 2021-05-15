@@ -31,9 +31,11 @@ class MLVC(MLVCBase):
         self.run_dir = os.path.join(self.mlvc_dir, self.run_id)
         make_dir_if_not_exist(self.run_dir)
 
+        git_folder = os.path.join(self.run_dir, "git")
+        make_dir_if_not_exist(git_folder)
         repo_details = self.git_utils.get_repo_details()
         git_diff_file_name = "code_diff.patch"
-        self.git_utils.write_diff(os.path.join(self.run_dir, git_diff_file_name))
+        self.git_utils.write_diff(os.path.join(git_folder, git_diff_file_name))
         repo_details["diff_file_name"] = git_diff_file_name
 
         log_details = self.init_loggers()
@@ -64,22 +66,24 @@ class MLVC(MLVCBase):
     # ******************** DATA ******************** #
     def add_annotation(self, ann_input, ann_input_type):
         self.check_init()
+        ann_folder = os.path.join(self.run_dir, "ann")
+        make_dir_if_not_exist(ann_folder)
 
         if ann_input_type == "json_file":
             ann_file_name = "data.json"
-            ann_file_path = os.path.join(self.run_dir, ann_file_name)
+            ann_file_path = os.path.join(ann_folder, ann_file_name)
             copyfile(ann_input, ann_file_path)
         if ann_input_type == "json":
             ann_file_name = "data.json"
-            ann_file_path = os.path.join(self.run_dir, ann_file_name)
+            ann_file_path = os.path.join(ann_folder, ann_file_name)
             write_json_to_file(ann_input, ann_file_path)
         elif ann_input_type == "csv_file":
             ann_file_name = "data.csv"
-            ann_file_path = os.path.join(self.run_dir, ann_file_name)
+            ann_file_path = os.path.join(ann_folder, ann_file_name)
             copyfile(ann_input, ann_file_path)
         elif ann_input_type == "dataframe":
             ann_file_name = "data.csv"
-            ann_file_path = os.path.join(self.run_dir, ann_file_name)
+            ann_file_path = os.path.join(ann_folder, ann_file_name)
             ann_input.to_csv(ann_file_path)
         else:
             raise Exception("No proper input type mentioned")
@@ -105,7 +109,9 @@ class MLVC(MLVCBase):
     def add_code_file(self, file_path):
         self.check_init()
         file_name = os.path.basename(file_path)
-        copyfile(file_path, os.path.join(self.run_dir, file_name))
+        code_dir = os.path.join(self.run_dir, "code")
+        make_dir_if_not_exist(code_dir)
+        copyfile(file_path, os.path.join(code_dir, file_name))
         query = Query()
         doc = self.db.get(query.run_id == self.run_id)
         code_files = doc["code"]["files"]

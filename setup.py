@@ -17,7 +17,11 @@ setuptools.setup(
     download_url='https://github.com/avilash/mlvc-client/tarball/main',
     keywords=[],
     install_requires=[
-
+        "tinydb",
+        "GitPython",
+        "psutil",
+        "GPUtil",
+        "requests"
     ],
     classifiers=[
         "Programming Language :: Python :: 3",
