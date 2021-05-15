@@ -1,9 +1,9 @@
 import os
 from os.path import expanduser
-from tinydb import TinyDB, Query
+from tinydb import TinyDB
 
-from singleton import SingletonMeta
-from utils.gen_utils import read_json_from_file, write_json_to_file, make_tarfile, make_dir_if_not_exist
+from mlvc.utils.singleton import SingletonMeta
+from mlvc.utils.gen_utils import read_json_from_file, make_dir_if_not_exist
 
 
 class MLVCBase(object):

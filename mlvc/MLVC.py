@@ -1,15 +1,15 @@
 import os
 from shutil import copyfile
 from secrets import token_hex
-from tinydb import TinyDB, Query
+from tinydb import Query
 import logging
 
-from base import MLVCBase
-from utils.gen_utils import read_json_from_file, write_json_to_file, make_tarfile, make_dir_if_not_exist
-from uploader import post
+from mlvc.base import MLVCBase
+from mlvc.utils.gen_utils import write_json_to_file, make_tarfile, make_dir_if_not_exist
+from mlvc.utils.uploader import post
 
-from modules.git.gitutils import GITUtils
-from modules.system.system_stats import SystemStats
+from mlvc.modules.git.gitutils import GITUtils
+from mlvc.modules.system.system_stats import SystemStats
 
 
 class MLVC(MLVCBase):
