@@ -44,7 +44,7 @@ class MLVC(MLVCBase):
         self.system_stats_obj.start()
 
         run = {
-            'run_id': self.run_id,
+            "run_id": self.run_id,
             "name": name,
             "description": description,
             "tags": tags,
@@ -93,7 +93,7 @@ class MLVC(MLVCBase):
             "type": ann_input_type,
             "file_name": ann_file_name,
         }
-        self.db.update({'ann': ann_obj}, query.run_id == self.run_id)
+        self.db.update({"ann": ann_obj}, query.run_id == self.run_id)
 
     # ******************** CONFIG ******************** #
     def add_config(self, config_input):
@@ -103,7 +103,7 @@ class MLVC(MLVCBase):
         doc = self.db.get(query.run_id == self.run_id)
         config = doc["config"]
         config.update(config_input)
-        self.db.update({'config': config}, query.run_id == self.run_id)
+        self.db.update({"config": config}, query.run_id == self.run_id)
 
     # ******************** CODE ******************** #
     def add_code_file(self, file_path):
@@ -136,7 +136,7 @@ class MLVC(MLVCBase):
         doc = self.db.get(query.run_id == self.run_id)
         output = doc["output"]
         output.update(metric_input)
-        self.db.update({'output': output}, query.run_id == self.run_id)
+        self.db.update({"output": output}, query.run_id == self.run_id)
 
     # ******************** COMMIT ******************** #
     def commit(self):
@@ -145,7 +145,7 @@ class MLVC(MLVCBase):
         doc = self.db.get(query.run_id == self.run_id)
 
         self.system_stats_obj.stop()
-        self.db.update({'status': "submitted"}, query.run_id == self.run_id)
+        self.db.update({"status": "submitted"}, query.run_id == self.run_id)
         self.remove_loggers()
 
     # ******************** UPLOAD ******************** #
@@ -160,7 +160,7 @@ class MLVC(MLVCBase):
              data=doc, headers=self.req_header)
         post("/project/" + self.project_id + "/model/" + self.model_id + "/run/" + self.run_id + "/files",
              files=files, headers=self.req_header)
-        self.db.update({'status': "uploaded"}, query.run_id == self.run_id)
+        self.db.update({"status": "uploaded"}, query.run_id == self.run_id)
 
     # ******************** Statictics ******************** #
     def get_all_runs(self):
@@ -177,8 +177,8 @@ class MLVC(MLVCBase):
         system_log_file_name = "system_stats.log"
 
         file_log_formatter = logging.Formatter(
-            "{'time':'%(asctime)s', 'name': '%(name)s', \
-            'level': '%(levelname)s', 'payload': '%(message)s'}"
+            "{\"time\":\"%(asctime)s\", \"name\": \"%(name)s\", \
+            \"level\": \"%(levelname)s\", \"payload\": %(message)s}"
         )
 
         self.run_logger = logging.getLogger("run")
