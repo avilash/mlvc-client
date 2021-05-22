@@ -1,4 +1,5 @@
 import os
+import time
 from shutil import copyfile
 from secrets import token_hex
 from tinydb import Query
@@ -7,6 +8,7 @@ import logging
 from mlvc.base import MLVCBase
 from mlvc.utils.gen_utils import write_json_to_file, make_tarfile, make_dir_if_not_exist
 from mlvc.utils.uploader import post
+from mlvc.utils.log_helper import CustomJsonFormatter
 
 from mlvc.modules.git.gitutils import GITUtils
 from mlvc.modules.system.system_stats import SystemStats
@@ -49,17 +51,21 @@ class MLVC(MLVCBase):
             "description": description,
             "tags": tags,
 
+            "system_info": self.system_stats_obj.get_system_info(),
             "ann": {},
             "config": {},
             "code": {
                 "git": repo_details,
                 "files": []
             },
+
             "logs": log_details,
             "output": {},
 
             "extra_info": {},
-            "status": "draft"
+            "status": "draft",
+
+            "created_at": time.time(),
         }
         self.db.insert(run)
 
@@ -143,9 +149,11 @@ class MLVC(MLVCBase):
         self.check_init()
         query = Query()
         doc = self.db.get(query.run_id == self.run_id)
-
+        created_time = doc["created_at"]
+        now = time.time()
+        training_time = now - created_time
         self.system_stats_obj.stop()
-        self.db.update({"status": "submitted"}, query.run_id == self.run_id)
+        self.db.update({"status": "submitted", "training_time": training_time}, query.run_id == self.run_id)
         self.remove_loggers()
 
     # ******************** UPLOAD ******************** #
@@ -176,10 +184,11 @@ class MLVC(MLVCBase):
         metric_log_file_name = "metric.log"
         system_log_file_name = "system_stats.log"
 
-        file_log_formatter = logging.Formatter(
-            "{\"time\":\"%(asctime)s\", \"name\": \"%(name)s\", \
-            \"level\": \"%(levelname)s\", \"payload\": %(message)s}"
-        )
+        # file_log_formatter = logging.Formatter(
+        #     "{\"time\":\"%(asctime)s\", \"name\": \"%(name)s\", \
+        #     \"level\": \"%(levelname)s\", \"payload\": \"%(message)s\"}"
+        # )
+        file_log_formatter = CustomJsonFormatter('%(timestamp)s %(level)s %(name)s %(message)s')
 
         self.run_logger = logging.getLogger("run")
         self.run_logger.setLevel(logging.DEBUG)
@@ -229,3 +238,4 @@ class MLVC(MLVCBase):
             current[path[-1]] = val
 
         return transform
+

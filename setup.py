@@ -21,7 +21,8 @@ setuptools.setup(
         "GitPython",
         "psutil",
         "GPUtil",
-        "requests"
+        "requests",
+        " python-json-logger"
     ],
     classifiers=[
         "Programming Language :: Python :: 3",
