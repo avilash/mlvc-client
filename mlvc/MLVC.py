@@ -1,3 +1,4 @@
+import sys
 import os
 import time
 from shutil import copyfile
@@ -8,7 +9,7 @@ import logging
 from mlvc.base import MLVCBase
 from mlvc.utils.gen_utils import write_json_to_file, make_tarfile, make_dir_if_not_exist
 from mlvc.utils.uploader import post
-from mlvc.utils.log_helper import CustomJsonFormatter
+from mlvc.utils.log_helper import CustomJsonFormatter, StdoutLogger
 
 from mlvc.modules.git.gitutils import GITUtils
 from mlvc.modules.system.system_stats import SystemStats
@@ -180,15 +181,15 @@ class MLVC(MLVCBase):
     # ******************** Logging ******************** #
 
     def init_loggers(self):
+        stdout_log_file_name = "stdout.log"
         run_log_file_name = "run.log"
         metric_log_file_name = "metric.log"
         system_log_file_name = "system_stats.log"
 
-        # file_log_formatter = logging.Formatter(
-        #     "{\"time\":\"%(asctime)s\", \"name\": \"%(name)s\", \
-        #     \"level\": \"%(levelname)s\", \"payload\": \"%(message)s\"}"
-        # )
         file_log_formatter = CustomJsonFormatter('%(timestamp)s %(level)s %(name)s %(message)s')
+
+        stdout_log_file_path = os.path.join(self.run_dir, stdout_log_file_name)
+        sys.stdout = StdoutLogger(stdout_log_file_path)
 
         self.run_logger = logging.getLogger("run")
         self.run_logger.setLevel(logging.DEBUG)
@@ -212,11 +213,15 @@ class MLVC(MLVCBase):
         self.system_stats_logger.addHandler(system_log_file_handler)
 
         return {
+            "stdout": {"file_name": stdout_log_file_name},
             "run": {"file_name": run_log_file_name},
             "metric": {"file_name": metric_log_file_name},
+            "system": {"file_name": system_log_file_name},
         }
 
     def remove_loggers(self):
+        sys.stdout = sys.__stdout__
+        sys.stderr = sys.__stderr__
         if self.run_logger is not None:
             while self.run_logger.hasHandlers():
                 self.run_logger.removeHandler(self.run_logger.handlers[0])
