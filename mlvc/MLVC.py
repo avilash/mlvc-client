@@ -1,3 +1,4 @@
+import json
 import sys
 import os
 import time
@@ -7,7 +8,7 @@ from tinydb import Query
 import logging
 
 from mlvc.base import MLVCBase
-from mlvc.utils.gen_utils import write_json_to_file, make_tarfile, make_dir_if_not_exist
+from mlvc.utils.gen_utils import write_json_to_file, read_lines_from_file, make_tarfile, make_dir_if_not_exist
 from mlvc.utils.uploader import post
 from mlvc.utils.log_helper import CustomJsonFormatter, StdoutLogger
 
@@ -53,15 +54,20 @@ class MLVC(MLVCBase):
             "tags": tags,
 
             "system_info": self.system_stats_obj.get_system_info(),
+
             "ann": {},
-            "config": {},
             "code": {
                 "git": repo_details,
                 "files": []
             },
+            "config": {},
+
+            "model": {},
 
             "logs": log_details,
-            "output": {},
+            "results": {},
+
+            "artifacts": {},
 
             "extra_info": {},
             "status": "draft",
@@ -134,27 +140,46 @@ class MLVC(MLVCBase):
         self.check_init()
         self.metric_logger.debug(metric_input)
 
-    # ******************** OUTPUT ******************** #
-    def add_output(self, metric_input):
-        self.check_init()
+    # ******************** RESULTS ******************** #
+    def add_results(self, metric_input):
         self.check_init()
         query = Query()
-
         doc = self.db.get(query.run_id == self.run_id)
-        output = doc["output"]
-        output.update(metric_input)
-        self.db.update({"output": output}, query.run_id == self.run_id)
+        results = doc["results"]
+        results.update(metric_input)
+        self.db.update({"results": results}, query.run_id == self.run_id)
+
+    def append_final_metric_results(self):
+        self.check_init()
+        query = Query()
+        doc = self.db.get(query.run_id == self.run_id)
+        metric_logs = read_lines_from_file(os.path.join(self.run_dir, doc["logs"]["metric"]["file_name"]))
+        run_results = doc["results"]
+        metric_final_results = {}
+        for log in metric_logs:
+            log_json = json.loads(log)
+            for key, val in log_json["payload"].items():
+                metric_final_results[key] = val
+        for key, val in metric_final_results.items():
+            if key not in run_results:
+                run_results[key] = val
+        return run_results
 
     # ******************** COMMIT ******************** #
     def commit(self):
         self.check_init()
         query = Query()
         doc = self.db.get(query.run_id == self.run_id)
+        # Time
         created_time = doc["created_at"]
         now = time.time()
         training_time = now - created_time
+        # Stop sstem logger
         self.system_stats_obj.stop()
-        self.db.update({"status": "submitted", "training_time": training_time}, query.run_id == self.run_id)
+        # Get final metric results
+        final_results = self.append_final_metric_results()
+        self.db.update({"status": "submitted", "training_time": training_time, "results": final_results},
+                       query.run_id == self.run_id)
         self.remove_loggers()
 
     # ******************** UPLOAD ******************** #
