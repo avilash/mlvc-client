@@ -1,4 +1,5 @@
 import sys
+import logging
 from datetime import datetime
 from pythonjsonlogger import jsonlogger
 
@@ -28,3 +29,20 @@ class StdoutLogger(object):
 
     def flush(self):
         pass
+
+
+def make_logger(name, level, file_path):
+    file_log_formatter = CustomJsonFormatter('%(timestamp)s %(level)s %(name)s %(message)s')
+    logger = logging.getLogger(name)
+    logger.setLevel(level)
+    file_handler = logging.FileHandler(file_path)
+    file_handler.setFormatter(file_log_formatter)
+    logger.addHandler(file_handler)
+    return logger
+
+
+def remove_logger(logger):
+    if logger is not None:
+        while logger.hasHandlers():
+            logger.removeHandler(logger.handlers[0])
+        logger = None

@@ -22,7 +22,7 @@ setuptools.setup(
         "psutil",
         "GPUtil",
         "requests",
-        " python-json-logger"
+        "python-json-logger"
     ],
     classifiers=[
         "Programming Language :: Python :: 3",

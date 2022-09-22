@@ -1,8 +1,9 @@
 import os
 from os.path import expanduser
-from tinydb import TinyDB
 
 from mlvc.utils.singleton import SingletonMeta
+from mlvc.mlvc_api import MLVCApi
+from mlvc.mlvc_db import MLVCDB
 from mlvc.utils.gen_utils import read_json_from_file, make_dir_if_not_exist
 
 
@@ -10,55 +11,34 @@ class MLVCBase(object):
     __metaclass__ = SingletonMeta
 
     def __init__(self):
-        # API Key
-        self.api_key = None
-        self.api_secret = None
-        self.req_header = None
-
-        # DB
-        self.db = None
-
+        self.mlvc_api = MLVCApi()
+        self.mlvc_db = MLVCDB()
+        
         # Project Details
         self.project_id = None
         self.model_id = None
+
+        # Current Run vars
         self.run_id = None
         self.run_dir = None
+        self.run_logger = None
+        self.metric_logger = None
+        self.system_stats_logger = None
+        self.system_stats_thread = None
 
+        # Init functions
         user_home = expanduser("~")
         self.mlvc_dir = os.path.join(user_home, ".mlvc")
         make_dir_if_not_exist(self.mlvc_dir)
 
-        # Init functions
-        self.init_keys()
-        self.init_db()
-
-    def init_keys(self):
-        credentials = read_json_from_file(os.path.join(self.mlvc_dir, "credentials.json"))
-        self.api_key = credentials["key"]
-        self.api_secret = credentials["secret"]
-        self.req_header = {
-            "x-api-key": self.api_key,
-            "x-api-secret": self.api_secret
-        }
-
-    def init_db(self):
-        self.db = TinyDB(os.path.join(self.mlvc_dir, "mlvc.json"))
-
-    def check_init(self, api=True, project=True, extr_vars=None):
-        if extr_vars is None:
-            extr_vars = []
-        if api:
-            api_key_vars = [self.api_key, self.api_secret, ]
-            for var in api_key_vars:
-                if var is None:
-                    raise Exception("MLVC not configured")
-        if project:
-            project_vars = [self.project_id, self.model_id]
-            for var in project_vars:
-                if var is None:
-                    raise Exception("MLVC not inititialised")
-        for var in extr_vars:
+    def check_project_init(self):
+        essentials_vars = [self.project_id, self.model_id]
+        for var in essentials_vars:
             if var is None:
-                raise Exception("Some Error")
+                raise Exception("MLVC project not inititialised")
 
-
+    def check_run_init(self):
+        essentials_vars = [self.run_id, self.run_dir, self.metric_logger, self.system_stats_logger, self.system_stats_thread]
+        for var in essentials_vars:
+            if var is None:
+                raise Exception("MLVC run not created")
