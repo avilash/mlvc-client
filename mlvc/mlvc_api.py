@@ -46,30 +46,23 @@ class MLVCApi(object):
 
     def upload_run_files(self, project_id, model_id, remote_run_id, run_zip_file_path):
         self.put("/v1.0/project/{}/model/{}/run/{}/upload".format(project_id, model_id, remote_run_id),
-             files=[run_zip_file_path], headers=self.req_header)
+             file=run_zip_file_path, headers=self.req_header)
 
-    def post(self, url, data={}, headers=None, files=None):
-        files_payload = None
-        if files is not None:
-            files_payload = self.build_files_payload(files)
+    def post(self, url, data={}, headers=None, file=None):
+        files_payload = {}
+        if file is not None:
+            files_payload = {'file': open(file, 'rb')}
         r = requests.post(self.API_URL + url, files=files_payload, json=data, headers=headers)
         print(r.text)
         res_json = json.loads(r.text)
         return res_json
 
-    def put(self, url, data={}, headers=None, files=None):
-        files_payload = None
-        if files is not None:
-            files_payload = self.build_files_payload(files)
+    def put(self, url, data={}, headers=None, file=None):
+        files_payload = {}
+        if file is not None:
+            files_payload = {'file': open(file, 'rb')}
         r = requests.put(self.API_URL + url, files=files_payload, json=data, headers=headers)
         print(r.text)
         res_json = json.loads(r.text)
         return res_json
-    
-    @staticmethod
-    def build_files_payload(files):
-        final_files = []
-        for f in files:
-            final_files.append(("files", (os.path.basename(f), open(f, "rb"))))
-        return final_files
     
